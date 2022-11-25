@@ -1,27 +1,134 @@
 <!DOCTYPE html>
 <html lang="ja">
-	<head>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width,initial-scale=1">
-		<title>gbfs-map test page</title>
-		<!-- Copyright 2018 Twitter, Inc and other contributors. Graphics licensed under CC-BY 4.0: https://creativecommons.org/licenses/by/4.0/ -->
-		<link rel="icon" type="image/png" href="https://favi.deno.dev/🚃.png" />
-		<link rel="apple-touch-icon" href="https://favi.deno.dev/🚃.png" />
-		<style media="screen">
-			body{
-				margin: 0;
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>gbfs-map test page</title>
+	<!-- Copyright 2018 Twitter, Inc and other contributors. Graphics licensed under CC-BY 4.0: https://creativecommons.org/licenses/by/4.0/ -->
+	<link rel="icon" type="image/png" href="https://favi.deno.dev/🚃.png" />
+	<link rel="apple-touch-icon" href="https://favi.deno.dev/🚃.png" />
+	<style media="screen">
+		body{
+			margin: 0;
+		}
+		table,tr,td,th{
+			border: 1px solid gray;
+			text-align: center;
+		}
+		th{
+			background-color: midnightblue;
+			color: white;
+			position: sticky;
+			top: 0;
+			left: 0;
+		}
+	</style>
+	<script type="module">
+		const [
+			trains,
+			idToStationName,
+			idToTrainType,
+			idToOperator,
+			idToRailDirection,
+			idToRailway,
+		] = await Promise.all([
+			getTrains(),
+			getOdptData("Station"),
+			getOdptData("TrainType"),
+			getOdptData("Operator"),
+			getOdptData("RailDirection"),
+			getOdptData("Railway"),
+		]);
+		console.log(trains);
+		trains.sort((a, b)=>{
+			const aRailway = idToRailway[a["odpt:railway"]];
+			const bRailway = idToRailway[b["odpt:railway"]];
+			if (bRailway?.["odpt:railwayTitle"].ja < aRailway?.["odpt:railwayTitle"].ja) {
+				return 1;
 			}
-			gbfs-map{
-				height: 80vh;
+			if (aRailway?.["odpt:railwayTitle"].ja < bRailway?.["odpt:railwayTitle"].ja) {
+				return -1;
 			}
-		</style>
-        <script type="module">
-            const res = await fetch("https://api-public.odpt.org/api/v4/odpt:Train");
-            const data = await res.json();
-            console.log(data);
-        </script>
-	</head>
-	<body>
-        
-	</body>
+			const aFromStation = aRailway["odpt:stationOrder"]
+				.find(station=>station["odpt:station"]===a["odpt:fromStation"]);
+			const aToStation = aRailway["odpt:stationOrder"]
+				.find(station=>station["odpt:station"]===a["odpt:toStation"]);
+			const bFromStation = bRailway["odpt:stationOrder"]
+				.find(station=>station["odpt:station"]===b["odpt:fromStation"]);
+			const bToStation = bRailway["odpt:stationOrder"]
+				.find(station=>station["odpt:station"]===b["odpt:toStation"]);
+			const aStationIndex = aToStation
+				? (aFromStation["odpt:index"] + aToStation["odpt:index"]) / 2
+				: aFromStation["odpt:index"];
+			const bStationIndex = bToStation
+				? (bFromStation["odpt:index"] + bToStation["odpt:index"]) / 2
+				: bFromStation["odpt:index"];
+				console.log({aStationIndex,bStationIndex})
+			if (aStationIndex !== bStationIndex) {
+				return aStationIndex - bStationIndex;
+			}
+			const aRailDirection = idToRailDirection[a["odpt:railDirection"]]?.["odpt:railDirectionTitle"].ja
+			const bRailDirection = idToRailDirection[b["odpt:railDirection"]]?.["odpt:railDirectionTitle"].ja
+			if (bRailDirection < aRailDirection) {
+				return 1;
+			}
+			if (aRailDirection < bRailDirection) {
+				return -1;
+			}
+			return 0;
+		})
+		const table = document.getElementById("table");
+		for (const train of trains) {
+			const tr = document.createElement("tr");
+			tr.innerHTML = `
+				<td>${idToOperator[train["odpt:operator"]]?.["odpt:operatorTitle"].ja}</td>
+				<td style="color: white;background-color: ${idToRailway[train["odpt:railway"]]?.["odpt:color"] ?? "gray"};">${idToRailway[train["odpt:railway"]]?.["odpt:railwayTitle"].ja}</td>
+				<td>${idToRailDirection[train["odpt:railDirection"]]?.["odpt:railDirectionTitle"].ja}</td>
+				<td>${train["odpt:trainNumber"]}</td>
+				<td>${idToTrainType[train["odpt:trainType"]]?.["odpt:trainTypeTitle"].ja}</td>
+				<td>${idToStationName[train["odpt:fromStation"]]?.["odpt:stationTitle"].ja}</td>
+				<td>→</td>
+				<td>${idToStationName[train["odpt:toStation"]]?.["odpt:stationTitle"].ja || "(停車中)"}</td>
+				<td>${train["odpt:originStation"].map(id=>idToStationName[id]?.["odpt:stationTitle"].ja).join(", ")}発</td>
+				<td>${train["odpt:destinationStation"].map(id=>idToStationName[id]?.["odpt:stationTitle"].ja).join(", ")}行</td>
+				<td>${idToOperator[train["odpt:trainOwner"]]?.["odpt:operatorTitle"].ja}</td>
+				<td>${train["odpt:delay"]}秒</td>
+			`
+			// `
+			table.append(tr);
+		}
+		async function getTrains() {
+			const res = await fetch("https://api-public.odpt.org/api/v4/odpt:Train");
+			return await res.json();
+		}
+		async function getOdptData(type) {
+			const res = await fetch(`https://api-public.odpt.org/api/v4/odpt:${type}`);
+			const dataset = await res.json();
+			const result = {}
+			for (const data of dataset) {
+				result[data["owl:sameAs"]] = data;
+			}
+			return result;
+		}
+	</script>
+</head>
+<body>
+	<table id="table">
+		<tr>
+			<th>社局</th>
+			<th>路線</th>
+			<th>運転方向</th>
+			<th>列番</th>
+			<th>種別</th>
+			<th>現在位置</th>
+			<th>→</th>
+			<th>現在位置</th>
+			<th>始発駅</th>
+			<th>終着駅</th>
+			<th>運転車両</th>
+			<th>遅延</th>
+		</tr>
+	</table>
+	<a href="https://github.com/ayame113/odpt-front">GitHub</a>
+</body>
 </html>
