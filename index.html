@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ja">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1">
+		<title>gbfs-map test page</title>
+		<!-- Copyright 2018 Twitter, Inc and other contributors. Graphics licensed under CC-BY 4.0: https://creativecommons.org/licenses/by/4.0/ -->
+		<link rel="icon" type="image/png" href="https://favi.deno.dev/🚃.png" />
+		<link rel="apple-touch-icon" href="https://favi.deno.dev/🚃.png" />
+		<style media="screen">
+			body{
+				margin: 0;
+			}
+			gbfs-map{
+				height: 80vh;
+			}
+		</style>
+        <script type="module">
+            const res = await fetch("https://api-public.odpt.org/api/v4/odpt:Train");
+            const data = await res.json();
+            console.log(data);
+        </script>
+	</head>
+	<body>
+        
+	</body>
+</html>
